@@ -83,7 +83,6 @@ int main (int argc, char **argv)
         Cmd* cmdline;
         cmdline = cmd();
         parse(Line,cmdline);
-		printf("%s\n",Line);
 
         /*
         printf("input:%s\n",cmdline->input);
