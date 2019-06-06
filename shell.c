@@ -9,108 +9,161 @@
 #include <fcntl.h>
 #include "parse.h"
 
-/*
-void printPrompt()
+int buildin(Cmd* cmdline)
 {
-    struct passwd *pwd;
-    pwd = getpwuid(getuid());
-    printf("\n%s", pwd->pw_name);
-
-    char host[100];
-    gethostname(host,sizeof(host));
-    printf("@%s", host);
-
-    char directory[256];
-    getcwd(directory,sizeof(directory));
-    printf(":%s$ ", directory);
-}
-*/
-
-int excute_buildincommand(Cmd* command){
-    if(strcmp(command->command_list[0],"exit")==0){
+    if (!strcmp(cmdline->cmd[0].args[0],"exit"))
+    {
         exit(0);
     }
-    /*
-    else if(strcmp(command->command_list[0],"cd")==0){
-        if(chdir(command->argument_list[0])){
-            printf("bash: cd: %s: no such directory\n",command[1]);
-        }
-        return 1;
+    else if (!strcmp(cmdline->cmd[0].args[0],"cd"))
+    {
+        int fd;
+    	fd=open(cmdline->cmd[0].args[1],O_RDONLY);
+    	fchdir(fd);
+    	close(fd);
+		return 1;
     }
-    */
-    else if(strcmp(command->command_list[0],"pwd")==0){
-        char directory[256];
-        getcwd(directory,sizeof(directory));
-        printf("%s\n", directory);
-        return 1;
-    }
-    return 0;
+    else if (!strcmp(cmdline->cmd[0].args[0],"jobs"))
+	{
+        /*
+        */
+		return 1;
+	}
+	else if (!strcmp(cmdline->cmd[0].args[0],"kill"))
+	{
+        /*
+        */
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+    
+    
 }
-
 
 int main (int argc, char **argv)
 {
-    Queue* cmd_history;
-    cmd_history = queue();
-    /*
-    Queue* job_history;
-    job_history = queue();
-    */
     FILE* input = fopen(argv[1],"r");
+    history* history_list;
+    history_list = his();
 
     while(!feof(input)){
-        char cmdLine[1024];
-        fgets(cmdLine,1024,input);
-        
-        int childPid;
-        //printPrompt();
+        pid_t childPid;
+        char Line[1024];
+        fgets(Line,1024,input);
         
         for (int i = 0; i < 1024; i++)
         {
-            if (cmdLine[i] == '\n')
+            if (Line[i] == '\n')
             {
-                cmdLine[i] = '\0';
+                Line[i] = '\0';
                 break;
             }
         }
-
-        /*
-        处理空行
-        */
         
-        Cmd* command;
-        command = cmd();
-        parse(cmdLine,command);
+        Cmd* cmdline;
+        cmdline = cmd();
+        parse(Line,cmdline);
 
-        storehistory(cmdLine,cmd_history);
         /*
-        printf("input:%s\n",command->input);
-        printf("output:%s\n",command->output);
-        printf("%d\n",command->background);
-        printf("%d\n",command->pipe);
-        printf("command:%s\n",command->command_list[command->pipe]);
-        printf("argument:%s\n",command->argument_list[command->pipe]);
+        printf("input:%s\n",cmdline->input);
+        printf("output:%s\n",cmdline->output);
+        printf("%d\n",cmdline->background);
+        printf("%d\n",cmdline->number);
+        printf("%d\n",cmdline->writekind);
+        printf("argument:%s\n",cmdline->cmd[0].args[0]);
+        printf("argument:%s\n",cmdline->cmd[0].args[1]);
         */
-        if (excute_buildincommand(command))
+
+        if (cmdline->number == 0)
+		{
+			continue;
+		}
+        
+        if (buildin(cmdline))
         {
+            continue;
         }
-        else
-        {
-            childPid = fork();
-            if(childPid == 0){
-                char** a = malloc(2*sizeof(char*));
-                a[0] = command->command_list[0];
-                a[1] = command->argument_list[0];
-                if(execvp(a[0],a)<0){
-                    printf("%s: command not found\n",command->command_list[0]);
-                    exit(0);
+
+        if (strcmp(cmdline->input,""))
+		{
+			cmdline->cmd[0].infd = open(cmdline->input, O_RDONLY);
+		}
+ 
+		if (strcmp(cmdline->output,""))
+		{
+			if (cmdline->writekind == 2)
+			{
+				cmdline->cmd[cmdline->number-1].outfd = open(cmdline->output, O_WRONLY | O_CREAT| O_APPEND, 0777);
+			}
+				
+			else
+			{
+				cmdline->cmd[cmdline->number-1].outfd = open(cmdline->output, O_WRONLY | O_CREAT| O_TRUNC, 0777);
+			}
+				
+		}
+
+        int i;
+		int fd;
+		int fds[2];
+		for (i = 0; i < cmdline->number; ++i)
+		{
+			if (i < (cmdline->number-1))
+			{
+				pipe(fds);
+				cmdline->cmd[i].outfd = fds[1];
+				cmdline->cmd[i+1].infd = fds[0];
+			}
+            /////////////////////////////////////////////////////////////////
+			childPid = fork();
+	        if (childPid == 0)
+	        {
+                if (cmdline->cmd[i].infd == 0 && cmdline->background == 1)
+			    {
+                    cmdline->cmd[i].infd = open("/dev/null", O_RDONLY);
                 }
-            }
-            else
+		        if (cmdline->cmd[i].infd != 0)
+		        {
+			        close(0);
+			        dup(cmdline->cmd[i].infd);
+		        }
+		        if (cmdline->cmd[i].outfd != 1)
+		        {
+			        close(1);
+			        dup(cmdline->cmd[i].outfd);
+		        }
+
+		        int j;
+		        for (j=3; j < 1024; ++j)
+			    {
+                    close(j);
+                }
+
+		        execvp(cmdline->cmd[i].args[0], cmdline->cmd[i].args);
+	        }
+
+	        else
             {
-            }
-        }
-        //printf("\n");
+		        if (cmdline->background == 1)
+                {
+
+                }
+		        else
+		        {
+			        wait(childPid);
+		        }
+	        }      
+            ////////////////////////////////////////////////////////////////////
+			if ((fd = cmdline->cmd[i].infd) != 0)
+				close(fd);
+
+			if ((fd = cmdline->cmd[i].outfd) != 1)
+				close(fd);
+		}
     }
+    fclose(input);
     
 }

@@ -1,31 +1,43 @@
 #ifndef PARSE_H
 #define PARSE_H
+#define PIPE 10
 
-typedef struct Queue
+typedef struct command
 {
-    char** history;
-    int loc;
-    int size;
-} Queue;
+    char** args;
+	int infd;
+	int outfd;
+} command;
 
-typedef struct Cmd
+typedef struct cmdline
 {
-    char** command_list;
-    char** argument_list;
-    int pipe;
+    command cmd[PIPE];
     char* input;
     char* output;
     int background;
-    int opkind;
+    int writekind;
+    int number;
 
 } Cmd;
 
+typedef struct job
+{
+    int number;
+    char* state;
+    char* command;
+} job_item;
+
+typedef struct list
+{
+    job_item history[1024];
+    int plus;
+    int minus;
+} history;
+
+
+history* his();
 Cmd* cmd();
-
-void parse(char *cmdLine, Cmd* cmd);
-
-Queue* queue();
-void storehistory(char *cmdLine,Queue* queue);
+void parse(char* Line, Cmd* cmdline);
 
 #include "parse.c"
 #endif
