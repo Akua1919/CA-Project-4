@@ -31,18 +31,20 @@ history* his()
 
     history_list->minus =0;
     history_list->plus =0;
+    history_list->most =0;
 
     for (int i = 0; i < 1024; i++)
     {
         history_list->history[i].number = i;
         history_list->history[i].state = "no";
-        history_list->history[i].command = "";
+        history_list->history[i].command = malloc(1024*sizeof(char));
     }
     return history_list;
 }
 
-void parse(char *Line, Cmd* cmd){
-
+void parse(char *Line2, Cmd* cmd){
+    char* Line = malloc(1024*sizeof(char));
+    memcpy(Line,Line2,strlen(Line2)+1);
     char* element = strtok(Line," ");
     
     while (element != NULL)

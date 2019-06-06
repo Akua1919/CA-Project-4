@@ -1,15 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pwd.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <signal.h>
 #include "parse.h"
 
-int buildin(Cmd* cmdline)
+int buildin(Cmd* cmdline, history* history_list)
 {
     if (!strcmp(cmdline->cmd[0].args[0],"exit"))
     {
@@ -25,8 +25,25 @@ int buildin(Cmd* cmdline)
     }
     else if (!strcmp(cmdline->cmd[0].args[0],"jobs"))
 	{
-        /*
-        */
+        for (int i = 0; i < history_list->most; i++)
+		{
+			if (strcmp(history_list->history[i].state,"no"))
+			{
+				if (i == history_list->plus-1)
+				{
+					printf("[%d]+  %s               %s\n",history_list->history[i].number,history_list->history[i].state,history_list->history[i].command);
+				}
+				else if (i == history_list->minus-1)
+				{
+					printf("[%d]-  %s               %s\n",history_list->history[i].number,history_list->history[i].state,history_list->history[i].command);
+				}
+				else
+				{
+					printf("[%d]   %s               %s\n",history_list->history[i].number,history_list->history[i].state,history_list->history[i].command);
+				}	
+			}
+			
+		}
 		return 1;
 	}
 	else if (!strcmp(cmdline->cmd[0].args[0],"kill"))
@@ -66,6 +83,7 @@ int main (int argc, char **argv)
         Cmd* cmdline;
         cmdline = cmd();
         parse(Line,cmdline);
+		printf("%s\n",Line);
 
         /*
         printf("input:%s\n",cmdline->input);
@@ -82,7 +100,7 @@ int main (int argc, char **argv)
 			continue;
 		}
         
-        if (buildin(cmdline))
+        if (buildin(cmdline,history_list))
         {
             continue;
         }
@@ -149,7 +167,12 @@ int main (int argc, char **argv)
             {
 		        if (cmdline->background == 1)
                 {
-
+					memcpy(history_list->history[history_list->most].command,Line,strlen(Line)+1);
+					history_list->history[history_list->most].number = history_list->most+1;
+					history_list->history[history_list->most].state = "Runing";
+					history_list->most++;
+					history_list->plus = history_list->most;
+					history_list->minus = history_list->most-1;
                 }
 		        else
 		        {
@@ -165,5 +188,4 @@ int main (int argc, char **argv)
 		}
     }
     fclose(input);
-    
 }

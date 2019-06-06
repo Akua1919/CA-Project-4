@@ -32,6 +32,7 @@ typedef struct list
     job_item history[1024];
     int plus;
     int minus;
+    int most;
 } history;
 
 
